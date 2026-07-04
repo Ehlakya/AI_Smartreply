@@ -98,7 +98,7 @@ const parseHeaders = (headers) => {
   const parsed = {};
   for (const header of headers) {
     const name = header.name.toLowerCase();
-    if (['from', 'to', 'subject', 'date'].includes(name)) {
+    if (['from', 'to', 'subject', 'date', 'cc', 'bcc'].includes(name)) {
       parsed[name] = header.value;
     }
   }
@@ -140,6 +140,8 @@ const formatEmailForDB = (message, userId) => {
     senderName,
     senderEmail,
     receiverEmail: headers.to || '',
+    cc: headers.cc || '',
+    bcc: headers.bcc || '',
     subject: headers.subject || '(No Subject)',
     snippet: message.snippet || '',
     body: body.trim(),
@@ -238,8 +240,127 @@ const sendEmail = async (user, { to, subject, body, threadId, inReplyTo, referen
   }
 };
 
+const modifyLabels = async (user, messageId, addLabelIds = [], removeLabelIds = []) => {
+  try {
+    const gmail = createGmailClient(user);
+    const res = await gmail.users.messages.modify({
+      userId: 'me',
+      id: messageId,
+      requestBody: { addLabelIds, removeLabelIds }
+    });
+    return res.data;
+  } catch (error) {
+    logger.error(`Gmail Modify Labels Error: ${error.message}`);
+    throw error;
+  }
+};
+
+const deleteMessage = async (user, messageId) => {
+  try {
+    const gmail = createGmailClient(user);
+    await gmail.users.messages.delete({ userId: 'me', id: messageId });
+    return true;
+  } catch (error) {
+    logger.error(`Gmail Delete Message Error: ${error.message}`);
+    throw error;
+  }
+};
+
+const sendDraft = async (user, draftId) => {
+  try {
+    const gmail = createGmailClient(user);
+    const res = await gmail.users.drafts.send({
+      userId: 'me',
+      requestBody: { id: draftId }
+    });
+    return res.data;
+  } catch (error) {
+    logger.error(`Gmail Send Draft Error: ${error.message}`);
+    throw error;
+  }
+};
+
+const updateDraft = async (user, draftId, { to, subject, body }) => {
+  try {
+    const gmail = createGmailClient(user);
+    const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+    
+    const messageParts = [
+      `To: ${to}`,
+      'Content-Type: text/html; charset=utf-8',
+      'MIME-Version: 1.0',
+      `Subject: ${utf8Subject}`,
+      '',
+      body
+    ];
+    
+    const message = messageParts.join('\r\n');
+    const encodedMessage = Buffer.from(message)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+      
+    const res = await gmail.users.drafts.update({
+      userId: 'me',
+      id: draftId,
+      requestBody: { message: { raw: encodedMessage } }
+    });
+    return res.data;
+  } catch (error) {
+    logger.error(`Gmail Update Draft Error: ${error.message}`);
+    throw error;
+  }
+};
+
+const deleteDraft = async (user, draftId) => {
+  try {
+    const gmail = createGmailClient(user);
+    await gmail.users.drafts.delete({ userId: 'me', id: draftId });
+    return true;
+  } catch (error) {
+    logger.error(`Gmail Delete Draft Error: ${error.message}`);
+    throw error;
+  }
+};
+
+const batchModifyLabels = async (user, messageIds, addLabelIds = [], removeLabelIds = []) => {
+  try {
+    const gmail = createGmailClient(user);
+    const res = await gmail.users.messages.batchModify({
+      userId: 'me',
+      requestBody: { ids: messageIds, addLabelIds, removeLabelIds }
+    });
+    return res.data;
+  } catch (error) {
+    logger.error(`Gmail Batch Modify Labels Error: ${error.message}`);
+    throw error;
+  }
+};
+
+const batchDeleteMessages = async (user, messageIds) => {
+  try {
+    const gmail = createGmailClient(user);
+    const res = await gmail.users.messages.batchDelete({
+      userId: 'me',
+      requestBody: { ids: messageIds }
+    });
+    return res.data;
+  } catch (error) {
+    logger.error(`Gmail Batch Delete Error: ${error.message}`);
+    throw error;
+  }
+};
+
 module.exports = {
   createGmailClient,
   syncRecentEmails,
-  sendEmail
+  sendEmail,
+  modifyLabels,
+  deleteMessage,
+  sendDraft,
+  updateDraft,
+  deleteDraft,
+  batchModifyLabels,
+  batchDeleteMessages
 };

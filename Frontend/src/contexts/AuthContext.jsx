@@ -93,19 +93,24 @@ export const AuthProvider = ({ children }) => {
     window.location.href = 'http://localhost:5000/api/auth/google';
   };
 
+  const devLogin = () => {
+    window.location.href = 'http://localhost:5000/api/auth/dev-login';
+  };
+
   const logout = async () => {
     try {
       await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout failed', error);
+    } finally {
       setUser(null);
       setAccessToken(null);
       localStorage.removeItem('accessToken');
-    } catch (error) {
-      console.error('Logout error', error);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, loading, loginWithGoogle, logout, api }}>
+    <AuthContext.Provider value={{ user, accessToken, loading, loginWithGoogle, devLogin, logout, api }}>
       {children}
     </AuthContext.Provider>
   );

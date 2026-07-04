@@ -95,9 +95,60 @@ const logout = async (req, res, next) => {
   }
 };
 
+// Step 6: Dev Login Bypass
+const devLogin = async (req, res) => {
+  try {
+    let user;
+    const isDbOnline = mongoose.connection.readyState === 1;
+
+    if (isDbOnline) {
+      user = await User.findOne({ email: 'dev@example.com' });
+      if (!user) {
+        user = new User({
+          googleId: 'dev_user_123',
+          email: 'dev@example.com',
+          name: 'Developer Mode',
+          picture: 'https://ui-avatars.com/api/?name=Dev',
+          provider: 'dev'
+        });
+        await user.save();
+      }
+    } else {
+      // Mock user if DB is offline
+      user = {
+        _id: new mongoose.Types.ObjectId(),
+        email: 'dev@example.com',
+        name: 'Developer Mode (Offline DB)',
+        picture: 'https://ui-avatars.com/api/?name=Dev'
+      };
+    }
+
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+    
+    if (isDbOnline) {
+      user.refreshToken = refreshToken;
+      await user.save();
+    }
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.redirect(`${env.FRONTEND_URL}/sync?token=${accessToken}`);
+  } catch (error) {
+    if (env.NODE_ENV === 'development') console.error('Dev Auth Error:', error);
+    res.redirect(`${env.FRONTEND_URL}/login?error=auth_failed`);
+  }
+};
+
 module.exports = {
   googleCallback,
   refreshToken,
   getMe,
-  logout
+  logout,
+  devLogin
 };

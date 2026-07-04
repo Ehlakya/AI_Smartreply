@@ -110,10 +110,43 @@ const translateReply = async (replyText, language) => {
   return await callGroqAPI(replyText, systemPrompt, 500);
 };
 
+/**
+ * Analyze email for importance (High, Medium, Low), Reason, and Confidence.
+ */
+const analyzeEmailImportance = async (emailContent, isTeamMail = false) => {
+  const context = isTeamMail 
+    ? 'This is a Team Mail. High priority: Project blockers, urgent bugs, production issues, immediate approvals. Medium: Daily updates, progress reports, code reviews. Low: Greetings, FYI, casual chats, brief replies.'
+    : 'This is a General/Priority Mail. High priority: Interview, Job Offer, Urgent Deadline, Important Project, Client Escalation, Salary, Invoice, Production Issue, Security Alert. Medium priority: Standard business communications, formal follow-ups. Low priority: Promotions, marketing, shopping, newsletters, spam, casual conversations, simple scheduling (e.g. "when works for you"), short replies, brief follow-ups, unwanted emails.';
+    
+  const systemPrompt = `You are an intelligent email analyzer. ${context}
+Analyze the provided email and output ONLY a valid JSON object with the following structure exactly:
+{
+  "priority": "High" | "Medium" | "Low",
+  "reason": "A 1-2 sentence explanation of why this priority was chosen",
+  "confidence": <a number between 0 and 100>
+}
+Do not include markdown tags like \`\`\`json or \`\`\`. Output just the raw JSON string.`;
+
+  const result = await callGroqAPI(emailContent, systemPrompt, 200);
+  
+  if (result.success) {
+    try {
+      const parsed = JSON.parse(result.data);
+      return { success: true, data: parsed };
+    } catch (e) {
+      logger.error('Failed to parse AI importance analysis JSON: ' + result.data);
+      // Fallback
+      return { success: true, data: { priority: 'Medium', reason: 'Failed to parse AI response. Defaulting to Medium.', confidence: 50 }};
+    }
+  }
+  return result;
+};
+
 module.exports = {
   summarizeEmail,
   generateReply,
   generateSuggestions,
   improveReply,
-  translateReply
+  translateReply,
+  analyzeEmailImportance
 };

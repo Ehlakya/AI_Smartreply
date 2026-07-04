@@ -12,9 +12,10 @@ const connectDB = async () => {
     });
     return true; // Successfully connected
   } catch (error) {
-    console.log('MongoDB server is offline.');
-    console.log('Please ensure MongoDB Community Server is running locally, or check your MONGO_URI.');
-    return false;
+    logger.error('MongoDB server is offline or connection failed.');
+    logger.error('Please ensure MongoDB is running or check your MONGO_URI.');
+    logger.error(error.message);
+    throw error;
   }
 };
 

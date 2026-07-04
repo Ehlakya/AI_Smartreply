@@ -1,6 +1,8 @@
 const { createGmailClient } = require('../../config/gmail');
 const Email = require('./email.model');
 const User = require('../user/user.model');
+const Settings = require('../settings/settings.model');
+const { analyzeEmailImportance } = require('../ai/groq.service');
 const logger = require('../../shared/utils/logger');
 
 const syncEmails = async (userId) => {
@@ -10,65 +12,149 @@ const syncEmails = async (userId) => {
       throw new Error('User not connected to Gmail or tokens missing');
     }
 
-    const gmail = createGmailClient(user);
-    
-    // Fetch last 50 emails to prevent rate limits on initial sync
-    const response = await gmail.users.messages.list({
-      userId: 'me',
-      maxResults: 50,
-      labelIds: ['INBOX']
-    });
+    // Use gmailService to fetch and cleanly parse the emails
+    const gmailService = require('./gmail.service');
+    const emailsToSync = await gmailService.syncRecentEmails(user, 50);
 
-    const messages = response.data.messages;
-    if (!messages) {
+    if (emailsToSync.length === 0) {
       logger.info('No new messages found.');
       return [];
     }
 
-    const savedEmails = [];
+    // Extended department keywords
+    const defaultDepartments = [
+      'hr', 'human resources', 'recruitment', 'talent acquisition', 'hiring', 'careers',
+      'corporate office', 'ceo', 'cto', 'cfo', 'director', 'manager', 'team lead',
+      'finance', 'accounts', 'payroll', 'operations', 'legal', 'compliance',
+      'admin', 'support', 'it support', 'helpdesk', 'customer success',
+      'project manager', 'delivery manager', 'noreply', 'notifications', 'info', 'sales', 'billing'
+    ];
 
-    for (const msg of messages) {
-      // Check if email already exists to prevent duplicates
-      const existing = await Email.findOne({ messageId: msg.id });
-      if (existing) continue;
+    // Check against User Settings
+    const userSettings = await Settings.findOne({ user: userId });
+    const userDomain = userSettings?.companyDomain?.toLowerCase();
+    const userTeamMembers = userSettings?.teamMembers?.map(t => t.toLowerCase()) || [];
+    const userDepartments = userSettings?.departmentKeywords?.map(d => d.toLowerCase()) || [];
+    
+    const allDepartments = [...new Set([...defaultDepartments, ...userDepartments])];
 
-      // Fetch email details
-      const detail = await gmail.users.messages.get({
-        userId: 'me',
-        id: msg.id,
-        format: 'metadata',
-        metadataHeaders: ['From', 'To', 'Subject', 'Date']
+    const bulkOps = [];
+
+    for (const emailData of emailsToSync) {
+      let category = 'Inbox';
+      let isTeamMail = false;
+      let rank = 7;
+
+      const senderEmailStr = emailData.senderEmail || '';
+      const senderNameStr = emailData.senderName || '';
+      const senderDomain = senderEmailStr.split('@')[1]?.toLowerCase();
+      const senderUser = senderEmailStr.split('@')[0]?.toLowerCase() || '';
+      const senderNameLower = senderNameStr.toLowerCase();
+
+      const userEmailDomain = user.email ? user.email.split('@')[1]?.toLowerCase() : '';
+      const publicDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com', 'mail.com', 'zoho.com', 'yandex.com', 'protonmail.com'];
+      
+      // Treat any non-public domain as a company/team domain
+      const isSenderCompanyDomain = senderDomain && !publicDomains.includes(senderDomain);
+
+      // 1. Is it a department / official email?
+      const isDepartment = allDepartments.some(dep => {
+        if (dep.length <= 3) {
+           const regex = new RegExp(`\\b${dep}\\b`, 'i');
+           return regex.test(senderUser) || regex.test(senderNameLower);
+        }
+        return senderUser.includes(dep) || senderNameLower.includes(dep);
       });
 
-      const headers = detail.data.payload.headers;
-      const getHeader = (name) => headers.find(h => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+      if (isDepartment) {
+        category = 'Company';
+        emailData.aiPriority = 'High';
+        emailData.aiReason = "Official company department email.";
+        emailData.aiConfidence = 100;
+        rank = 1;
+      } else {
+        // 2. If not a department, is it a Team Member / Company Member?
+        if (isSenderCompanyDomain || (userDomain && senderDomain === userDomain)) {
+          category = 'Team';
+          isTeamMail = true;
+          rank = 2; // Default Team Medium
+          emailData.aiPriority = 'Medium';
+        }
+      }
 
-      const fromHeader = getHeader('From');
-      const senderNameMatch = fromHeader.split('<')[0].trim();
-      const senderEmailMatch = fromHeader.match(/<(.+)>/)?.[1] || fromHeader;
+      emailData.aiCategory = category;
 
-      const emailData = {
-        user: userId,
-        messageId: detail.data.id,
-        threadId: detail.data.threadId,
-        senderName: senderNameMatch,
-        senderEmail: senderEmailMatch,
-        receiver: getHeader('To'),
-        subject: getHeader('Subject') || 'No Subject',
-        snippet: detail.data.snippet,
-        labels: detail.data.labelIds || [],
-        readStatus: !(detail.data.labelIds || []).includes('UNREAD'),
-        starred: (detail.data.labelIds || []).includes('STARRED'),
-        spamStatus: (detail.data.labelIds || []).includes('SPAM'),
-        receivedTime: new Date(getHeader('Date')),
-      };
+      // AI Analysis only for new unanalyzed items that aren't already purely team or company (or do it for all to get priority reasons)
+      const fullContent = `${emailData.subject}\n\n${emailData.snippet}`;
+      
+      try {
+        const aiResult = await analyzeEmailImportance(fullContent, isTeamMail);
+        
+        if (aiResult.success) {
+          // If it was already a Company/Department email, keep High but use AI reason if helpful, or keep static.
+          if (category === 'Company') {
+             // We keep Rank 1, High priority. We can use AI reason.
+             emailData.aiReason = "Official company department email. " + aiResult.data.reason;
+             emailData.aiConfidence = aiResult.data.confidence || 100;
+             emailData.isAnalyzed = true;
+          } else if (category === 'Team') {
+             emailData.aiPriority = aiResult.data.priority;
+             emailData.aiReason = aiResult.data.reason;
+             emailData.aiConfidence = aiResult.data.confidence;
+             emailData.isAnalyzed = true;
 
-      const newEmail = await Email.create(emailData);
-      savedEmails.push(newEmail);
+             if (emailData.aiPriority === 'High') {
+               rank = 1;
+             } else {
+               emailData.aiPriority = 'Medium';
+               rank = 2;
+             }
+          } else {
+             emailData.aiPriority = aiResult.data.priority;
+             emailData.aiReason = aiResult.data.reason;
+             emailData.aiConfidence = aiResult.data.confidence;
+             emailData.isAnalyzed = true;
+
+             if (emailData.aiPriority === 'High') {
+               rank = 1;
+             } else if (emailData.aiPriority === 'Medium') {
+               rank = 2;
+             } else {
+               emailData.aiPriority = 'Low';
+               rank = 3;
+             }
+          }
+        } else {
+           if (category !== 'Company' && category !== 'Team') {
+               emailData.aiPriority = 'Low';
+               rank = 3;
+           }
+        }
+      } catch (aiErr) {
+        logger.error(`AI Analysis failed for msg ${emailData.gmailMessageId}: ${aiErr.message}`);
+        if (category !== 'Company' && category !== 'Team') {
+           emailData.aiPriority = 'Low';
+           rank = 3;
+        }
+      }
+
+      emailData.globalPriorityRank = rank;
+
+      bulkOps.push({
+        updateOne: {
+          filter: { userId: user._id, gmailMessageId: emailData.gmailMessageId },
+          update: { $set: emailData },
+          upsert: true
+        }
+      });
     }
 
-    logger.info(`Successfully synced ${savedEmails.length} new emails for user ${userId}`);
-    return savedEmails;
+    if (bulkOps.length > 0) {
+      await Email.bulkWrite(bulkOps);
+    }
+
+    logger.info(`Successfully synced ${bulkOps.length} new emails for user ${userId}`);
+    return emailsToSync;
   } catch (error) {
     logger.error('Error syncing emails:', error);
     throw error;

@@ -16,7 +16,7 @@ const emailRoutes = require('./modules/email/email.routes');
 // const replyRoutes = require('./modules/reply/reply.routes');
 // const spamRoutes = require('./modules/spam/spam.routes');
 // const dashboardRoutes = require('./modules/dashboard/dashboard.routes');
-// const settingsRoutes = require('./modules/settings/settings.routes');
+const settingsRoutes = require('./modules/settings/settings.routes');
 // const notificationRoutes = require('./modules/notification/notification.routes');
 // const searchRoutes = require('./modules/search/search.routes');
 
@@ -62,7 +62,7 @@ app.use('/api/ai', aiRoutes);
 // app.use('/api/replies', replyRoutes);
 // app.use('/api/spam', spamRoutes);
 // app.use('/api/dashboard', dashboardRoutes);
-// app.use('/api/settings', settingsRoutes);
+app.use('/api/settings', settingsRoutes);
 // app.use('/api/notifications', notificationRoutes);
 // app.use('/api/search', searchRoutes);
 

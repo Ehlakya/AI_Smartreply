@@ -36,6 +36,14 @@ const emailSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  cc: {
+    type: String,
+    default: ''
+  },
+  bcc: {
+    type: String,
+    default: ''
+  },
   subject: {
     type: String,
     default: '(No Subject)'
@@ -74,6 +82,32 @@ const emailSchema = new mongoose.Schema({
     enum: ['inbox', 'sent', 'drafts', 'trash', 'spam', 'archive'],
     default: 'inbox',
     index: true
+  },
+  aiPriority: {
+    type: String,
+    enum: ['High', 'Medium', 'Low', null],
+    default: null
+  },
+  aiReason: {
+    type: String,
+    default: ''
+  },
+  aiConfidence: {
+    type: Number,
+    default: null
+  },
+  aiCategory: {
+    type: String,
+    enum: ['Company', 'Priority', 'Team', 'Inbox'],
+    default: 'Inbox'
+  },
+  globalPriorityRank: {
+    type: Number,
+    default: 6
+  },
+  isAnalyzed: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 

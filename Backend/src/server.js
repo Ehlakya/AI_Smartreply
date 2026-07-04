@@ -16,22 +16,15 @@ initSocket(server);
 const startServer = async () => {
   try {
     // 1. Validate Environment
-    const isEnvValid = envValidator();
-    console.log('✓ Environment Loaded');
-    if (isEnvValid) {
-      console.log('✓ Environment Validated');
-    }
+    envValidator();
+    console.log('✓ Environment Loaded and Validated');
 
-    // 2. Connect to MongoDB
-    const dbConnected = await connectDB();
-    if (dbConnected) {
-      console.log('✓ MongoDB Connected');
-    } else {
-      console.log('⚠ MongoDB Offline');
-    }
+    // 2. Connect to MongoDB (will throw if it fails)
+    await connectDB();
+    console.log('✓ MongoDB Connected');
 
     // 3. Setup Complete
-    if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_ID !== 'your_google_client_id') {
+    if (env.GOOGLE_CLIENT_ID && !env.GOOGLE_CLIENT_ID.includes('your_')) {
       console.log('✓ Passport Initialized');
       console.log('✓ Google OAuth Ready');
       console.log('✓ Gmail API Ready');
@@ -51,11 +44,9 @@ const startServer = async () => {
     });
   } catch (error) {
     logger.error('Failed to start server cleanly:', error);
-    // As per new fault-tolerance requirements, we never exit the process.
-    // We just attempt to listen anyway so the frontend can at least get basic responses.
-    server.listen(env.PORT, () => {
-      console.log(`⚠ Express Server Running on Port ${env.PORT} (with startup errors)\n`);
-    });
+    console.error('\n⚠ FATAL STARTUP ERROR ⚠');
+    console.error('The server cannot start due to the above errors (e.g. missing credentials or database offline).');
+    process.exit(1);
   }
 };
 

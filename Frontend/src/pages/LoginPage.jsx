@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
-  const { loginWithGoogle } = useAuth();
+  const { loginWithGoogle, devLogin } = useAuth();
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -82,6 +82,14 @@ export default function LoginPage() {
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
               </svg>
               Continue with Google
+            </button>
+
+            <button 
+              onClick={devLogin}
+              className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-2xl font-medium transition-all duration-300 border border-primary/20 group"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+              Developer Login (Bypass)
             </button>
 
             <button 

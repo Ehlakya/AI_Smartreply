@@ -8,6 +8,16 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import SyncScreen from './pages/SyncScreen';
 import InboxPage from './pages/InboxPage';
+import SentPage from './pages/SentPage';
+import DraftsPage from './pages/DraftsPage';
+import StarredPage from './pages/StarredPage';
+import TrashPage from './pages/TrashPage';
+import SpamPage from './pages/SpamPage';
+import ArchivePage from './pages/ArchivePage';
+
+import ConfigurationPage from './pages/ConfigurationPage';
+import PriorityMailPage from './pages/PriorityMailPage';
+import TeamMailPage from './pages/TeamMailPage';
 
 const queryClient = new QueryClient();
 
@@ -28,19 +38,20 @@ function App() {
                   <Route index element={<div className="p-8 glass rounded-3xl h-full"><h1 className="text-4xl font-bold text-primary">AI Mail Reply Assistant</h1><p className="mt-4 opacity-70">Welcome! Please select a folder from the sidebar.</p></div>} />
                   <Route path="dashboard" element={<div className="p-8 glass rounded-3xl h-full">Dashboard Analytics View</div>} />
                   <Route path="inbox" element={<InboxPage />} />
-                  <Route path="priority" element={<div className="p-8 glass rounded-3xl h-full">Priority Mail View</div>} />
-                  <Route path="team" element={<div className="p-8 glass rounded-3xl h-full">Team Mail View</div>} />
+                  <Route path="priority" element={<PriorityMailPage />} />
+                  <Route path="team" element={<TeamMailPage />} />
+                  <Route path="settings" element={<ConfigurationPage />} />
                   <Route path="others" element={<div className="p-8 glass rounded-3xl h-full">Other Mail View</div>} />
-                  <Route path="spam" element={<div className="p-8 glass rounded-3xl h-full">Spam View</div>} />
-                  <Route path="sent" element={<div className="p-8 glass rounded-3xl h-full">Sent Mail View</div>} />
-                  <Route path="drafts" element={<div className="p-8 glass rounded-3xl h-full">Drafts View</div>} />
-                  <Route path="starred" element={<div className="p-8 glass rounded-3xl h-full">Starred Mail View</div>} />
-                  <Route path="trash" element={<div className="p-8 glass rounded-3xl h-full">Trash View</div>} />
+                  <Route path="spam" element={<SpamPage />} />
+                  <Route path="archive" element={<ArchivePage />} />
+                  <Route path="sent" element={<SentPage />} />
+                  <Route path="drafts" element={<DraftsPage />} />
+                  <Route path="starred" element={<StarredPage />} />
+                  <Route path="trash" element={<TrashPage />} />
                   
                   <Route path="ai" element={<div className="p-8 glass rounded-3xl h-full">AI Assistant View</div>} />
                   <Route path="history" element={<div className="p-8 glass rounded-3xl h-full">AI History View</div>} />
                   <Route path="contacts" element={<div className="p-8 glass rounded-3xl h-full">Contacts View</div>} />
-                  <Route path="settings" element={<div className="p-8 glass rounded-3xl h-full">Settings View</div>} />
                 </Route>
               </Route>
             </Routes>

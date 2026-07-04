@@ -16,6 +16,7 @@
     "axios": "^1.18.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.23.0",
     "postcss": "^8.5.16",
@@ -25,7 +26,8 @@
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.18.1",
     "tailwind-merge": "^3.6.0",
-    "tailwindcss": "^4.3.2"
+    "tailwindcss": "^4.3.2",
+    "use-debounce": "^10.1.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

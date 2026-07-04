@@ -25,7 +25,15 @@ if (isValidOAuth) {
           console.log(`[OAuth] Token exchange successful.`);
         }
 
-        let user = await User.findOne({ googleId: profile.id });
+        let user;
+        const mongoose = require('mongoose');
+        
+        if (mongoose.connection.readyState !== 1) {
+          if (env.NODE_ENV === 'development') console.error(`[OAuth] Cannot authenticate user: MongoDB is disconnected.`);
+          return done(new Error('Database disconnected'), null);
+        }
+
+        user = await User.findOne({ googleId: profile.id });
         
         if (!user) {
           if (env.NODE_ENV === 'development') console.log(`[OAuth] Creating new user for ${profile.emails[0].value}`);

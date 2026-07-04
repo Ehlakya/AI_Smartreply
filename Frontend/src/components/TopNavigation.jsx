@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search, Bell, Moon, Sun, Mic } from 'lucide-react';
 
-export default function TopNavigation() {
+export default function TopNavigation({ onMenuClick }) {
   const [darkMode, setDarkMode] = React.useState(false);
 
   const toggleTheme = () => {
@@ -10,9 +10,17 @@ export default function TopNavigation() {
   };
 
   return (
-    <header className="sticky top-0 z-40 h-20 px-8 flex items-center justify-between bg-background/80 backdrop-blur-xl border-b border-border/40 shadow-sm transition-colors duration-300">
-      <div className="flex-1 max-w-2xl">
-        <div className="relative group">
+    <header className="sticky top-0 z-30 h-20 px-4 md:px-8 flex items-center justify-between bg-background/80 backdrop-blur-xl border-b border-border/40 shadow-sm transition-colors duration-300">
+      <div className="flex items-center gap-2 md:gap-4 flex-1 max-w-2xl">
+        <button 
+          onClick={onMenuClick}
+          className="lg:hidden p-2 -ml-2 rounded-xl text-foreground/70 hover:bg-foreground/5 transition-colors"
+          title="Open Menu"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+
+        <div className="relative group w-full">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <Search className="h-[18px] w-[18px] text-foreground/40 group-focus-within:text-primary transition-colors" />
           </div>

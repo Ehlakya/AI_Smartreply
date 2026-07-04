@@ -30,12 +30,12 @@ const validateEnv = () => {
   }
 
   if (missing.length > 0) {
-    console.warn('\n⚠ ENVIRONMENT CONFIGURATION WARNING ⚠');
+    console.error('\n⚠ CRITICAL ENVIRONMENT CONFIGURATION ERROR ⚠');
     missing.forEach(key => {
-      console.warn(`- Missing or invalid: ${key}`);
+      console.error(`- Missing or invalid: ${key}`);
     });
-    console.warn('Some features may be disabled. Please configure your .env file properly.\n');
-    return false;
+    console.error('Please configure your .env file properly.\n');
+    throw new Error('Environment validation failed due to missing variables.');
   }
 
   // STEP 2: Print masked variables in development mode
@@ -86,7 +86,9 @@ const validateEnv = () => {
   }
 
   if (hasPlaceholders) {
-    console.warn('The server is booting in DEV mode, but OAuth and Database will fail until credentials are provided.');
+    console.error('\n⚠ CRITICAL ENVIRONMENT CONFIGURATION ERROR ⚠');
+    console.error('The server cannot boot with placeholder credentials.');
+    throw new Error('Environment validation failed due to placeholder credentials.');
   }
 
   return true;

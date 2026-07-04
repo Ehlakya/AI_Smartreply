@@ -31,7 +31,17 @@ const settingsSchema = new mongoose.Schema({
   autoSyncIntervalMinutes: {
     type: Number,
     default: 15
-  }
+  },
+  companyDomain: {
+    type: String,
+    default: ''
+  },
+  teamMembers: [{
+    type: String
+  }],
+  departmentKeywords: [{
+    type: String
+  }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Settings', settingsSchema);

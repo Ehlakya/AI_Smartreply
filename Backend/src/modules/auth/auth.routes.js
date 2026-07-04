@@ -45,6 +45,7 @@ router.get('/google/callback',
 );
 
 // Other Auth Routes
+router.get('/dev-login', authController.devLogin);
 router.post('/refresh', authController.refreshToken);
 router.post('/logout', authMiddleware, authController.logout);
 router.get('/me', authMiddleware, authController.getMe);
