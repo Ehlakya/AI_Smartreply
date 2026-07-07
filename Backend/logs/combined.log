@@ -4722,3 +4722,4 @@
 {"level":"info","message":"Successfully synced 24 new emails for user 6a47f0d99164051347fa3d36","timestamp":"2026-07-04 17:35:22"}
 {"level":"info","message":"Synced 24 new emails for ehlakya@gmail.com","timestamp":"2026-07-04 17:35:22"}
 {"level":"info","message":"Auto Sync Job Completed.","timestamp":"2026-07-04 17:35:22"}
+{"level":"error","message":"MongoDB Connection Error:","timestamp":"2026-07-07 15:51:59"}
