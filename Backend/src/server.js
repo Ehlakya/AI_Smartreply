@@ -20,6 +20,13 @@ const startServer = async () => {
     console.log('✓ Environment Loaded and Validated');
 
     // 2. Connect to MongoDB (will throw if it fails)
+    if (env.MONGO_URI) {
+      const scheme = env.MONGO_URI.split(':')[0];
+      console.log(`✓ MongoDB URI is loaded (Scheme: ${scheme}://***)`);
+    } else {
+      console.log('⚠ MongoDB URI is NOT loaded');
+    }
+    
     await connectDB();
     console.log('✓ MongoDB Connected');
 
