@@ -19,12 +19,12 @@ const startServer = async () => {
     envValidator();
     console.log('✓ Environment Loaded and Validated');
 
-    // 2. Connect to MongoDB (will throw if it fails)
-    if (env.MONGO_URI) {
-      const scheme = env.MONGO_URI.split(':')[0];
-      console.log(`✓ MongoDB URI is loaded (Scheme: ${scheme}://***)`);
+    // 2. Connect to Database (will throw if it fails)
+    if (env.DB_URL) {
+      const scheme = env.DB_URL.split(':')[0];
+      console.log(`✓ Database URL is loaded (Scheme: ${scheme}://***)`);
     } else {
-      console.log('⚠ MongoDB URI is NOT loaded');
+      console.log('⚠ Database URL is NOT loaded');
     }
     
     await connectDB();

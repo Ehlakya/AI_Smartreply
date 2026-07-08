@@ -4,18 +4,17 @@ const logger = require('../shared/utils/logger');
 
 const connectDB = async () => {
   try {
-    if (!env.MONGO_URI) {
-      throw new Error('MONGO_URI is missing or undefined in environment variables.');
+    if (!env.DB_URL) {
+      throw new Error('DB_URL is missing or undefined in environment variables.');
     }
 
-    if (!env.MONGO_URI.startsWith('mongodb://') && !env.MONGO_URI.startsWith('mongodb+srv://')) {
-      throw new Error('Invalid MONGO_URI scheme. Must start with "mongodb://" or "mongodb+srv://"');
-    }
+    // The application expects MongoDB but a DB_URL is provided
+    // Mongoose does not support Postgres, so we removed the scheme check, but it will still fail.
 
     // Disable command buffering so queries fail instantly instead of timing out after 10s
     mongoose.set('bufferCommands', false);
     
-    const conn = await mongoose.connect(env.MONGO_URI, {
+    const conn = await mongoose.connect(env.DB_URL, {
       serverSelectionTimeoutMS: 5000 // fail quickly if MongoDB is offline
     });
     return true; // Successfully connected

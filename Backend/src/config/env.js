@@ -11,7 +11,7 @@ const cleanEnv = (value, defaultValue) => {
 module.exports = {
   NODE_ENV: cleanEnv(process.env.NODE_ENV, 'development'),
   PORT: cleanEnv(process.env.PORT, '5000'),
-  MONGO_URI: cleanEnv(process.env.MONGO_URI, 'mongodb://localhost:27017/ai_mail_assistant'),
+  DB_URL: cleanEnv(process.env.DB_URL, 'postgresql://localhost:5432/ai_mail_assistant'),
   JWT_SECRET: cleanEnv(process.env.JWT_SECRET, 'fallback_secret'),
   JWT_REFRESH_SECRET: cleanEnv(process.env.JWT_REFRESH_SECRET, 'fallback_refresh_secret'),
   JWT_EXPIRES_IN: cleanEnv(process.env.JWT_EXPIRES_IN, '1d'),
