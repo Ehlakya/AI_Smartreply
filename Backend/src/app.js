@@ -48,6 +48,10 @@ if (env.NODE_ENV === 'development') {
 // Static folder for uploads
 app.use('/uploads', express.static('uploads'));
 
+app.get('/', (req, res) => {
+  res.send('AI Smart Reply API is running.');
+});
+
 // API Routes
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'success', message: 'API is running' });
