@@ -3,7 +3,7 @@ const env = require('./env');
 const validateEnv = () => {
   const required = [
     'PORT',
-    'MONGO_URI',
+    'DB_URL',
     'JWT_SECRET',
     'JWT_REFRESH_SECRET',
     'GOOGLE_CLIENT_ID',
@@ -80,8 +80,8 @@ const validateEnv = () => {
     console.warn('⚠ WARNING: GROQ_API_KEY is still a placeholder. AI features will be disabled.');
   }
 
-  if (env.MONGO_URI && env.MONGO_URI.includes('username:password')) {
-    console.warn('⚠ WARNING: MONGO_URI contains default username:password.');
+  if (env.DB_URL && env.DB_URL.includes('username:password')) {
+    console.warn('⚠ WARNING: DB_URL contains default username:password.');
     hasPlaceholders = true;
   }
 
