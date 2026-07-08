@@ -43,5 +43,15 @@ export const aiService = {
       console.error('AI Generate Suggestions Error:', error);
       throw error;
     }
+  },
+
+  refineReply: async (draft, instruction) => {
+    try {
+      const response = await axios.post(`${API_URL}/refine`, { draft, instruction }, getAuthHeaders());
+      return response.data;
+    } catch (error) {
+      console.error('AI Refine Reply Error:', error);
+      throw error;
+    }
   }
 };

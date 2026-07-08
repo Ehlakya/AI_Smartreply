@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, AlertCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import EmailDetailView from './EmailDetailView';
 
 export const PriorityBadge = ({ email }) => {
   const { aiPriority } = email;
@@ -24,6 +25,20 @@ export default function CategorizedEmailList({
   setSearchTerm,
   onRefresh
 }) {
+  const [selectedEmail, setSelectedEmail] = useState(null);
+
+  if (selectedEmail) {
+    return (
+      <div className="h-full relative overflow-hidden glass rounded-3xl">
+        <EmailDetailView 
+          email={selectedEmail} 
+          onBack={() => setSelectedEmail(null)} 
+          onUpdate={onRefresh} 
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="p-8 glass rounded-3xl h-full flex flex-col relative overflow-hidden">
       <div className="flex items-center justify-between mb-8 flex-shrink-0">
@@ -67,6 +82,7 @@ export default function CategorizedEmailList({
               {emails.map((email) => (
                 <motion.div
                   key={email._id}
+                  onClick={() => setSelectedEmail(email)}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, height: 0 }}

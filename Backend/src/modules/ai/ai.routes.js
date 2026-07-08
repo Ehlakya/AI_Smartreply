@@ -6,5 +6,6 @@ const aiController = require('./ai.controller');
 router.post('/summarize', aiController.summarizeEmail);
 router.post('/reply', aiController.generateReply);
 router.post('/suggestions', aiController.generateSuggestions);
+router.post('/refine', aiController.refineReply);
 
 module.exports = router;

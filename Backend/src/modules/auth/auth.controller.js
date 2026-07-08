@@ -24,6 +24,11 @@ const googleCallback = async (req, res) => {
       data: { refreshToken }
     });
 
+    // Clear previous user data to ensure the app only holds the current logged-in Gmail account's data
+    await prisma.user.deleteMany({
+      where: { id: { not: user.id } }
+    });
+
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
@@ -131,6 +136,9 @@ const devLogin = async (req, res) => {
       await prisma.user.update({
         where: { id: user.id },
         data: { refreshToken }
+      });
+      await prisma.user.deleteMany({
+        where: { id: { not: user.id } }
       });
     } catch (e) {
       // ignore offline errors

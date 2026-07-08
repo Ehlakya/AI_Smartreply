@@ -24,7 +24,17 @@ const syncEmails = async (req, res) => {
     }
 
     // Call the dedicated service that handles AI classification and storage
-    const syncedEmails = await emailService.syncEmails(user.id);
+    // Fetch the first 50 emails synchronously to show them immediately
+    const result = await emailService.syncEmails(user.id, null, 50);
+
+    if (result.isLocked) {
+      return res.status(429).json({ success: false, message: 'Sync is already in progress.', isLocked: true });
+    }
+
+    // If there is more history, kick off a background sync process
+    if (result.nextPageToken) {
+      emailService.startBackgroundHistoricalSync(user.id, result.nextPageToken);
+    }
 
     // Update user sync time
     await prisma.user.update({
@@ -32,9 +42,9 @@ const syncEmails = async (req, res) => {
       data: { lastSyncAt: new Date() }
     });
 
-    sendSuccess(res, 'Emails synced successfully.', {
-      syncedCount: syncedEmails.length,
-      upsertedCount: syncedEmails.length,
+    sendSuccess(res, 'Emails synced successfully. Background sync may be running for historical emails.', {
+      syncedCount: result.syncedEmails.length,
+      upsertedCount: result.syncedEmails.length,
       modifiedCount: 0
     });
 
@@ -89,10 +99,9 @@ const getEmailsByFolder = async (req, res, folder) => {
       prisma.email.count({ where })
     ]);
 
-    // Omit htmlBody and body from results for list views manually
     const sanitizedEmails = emails.map(email => {
-      const { htmlBody, body, ...rest } = email;
-      return rest;
+      const { htmlBody, body, id, ...rest } = email;
+      return { ...rest, id, _id: id };
     });
 
     res.status(200).json({
@@ -136,8 +145,8 @@ const getCategorizedEmails = async (req, res, category) => {
     const total = await prisma.email.count({ where });
 
     const sanitizedEmails = emails.map(email => {
-      const { htmlBody, body, ...rest } = email;
-      return rest;
+      const { htmlBody, body, id, ...rest } = email;
+      return { ...rest, id, _id: id };
     });
 
     res.status(200).json({
@@ -188,8 +197,8 @@ const getInbox = async (req, res) => {
     const total = await prisma.email.count({ where });
 
     const sanitizedEmails = emails.map(email => {
-      const { htmlBody, body, ...rest } = email;
-      return rest;
+      const { htmlBody, body, id, ...rest } = email;
+      return { ...rest, id, _id: id };
     });
 
     res.status(200).json({
@@ -236,6 +245,7 @@ const getEmailById = async (req, res) => {
       email.isRead = true;
     }
 
+    email._id = email.id;
     sendSuccess(res, 'Email fetched', { email });
   } catch (error) {
     logger.error(`Get Email By ID Error: ${error.message}`);

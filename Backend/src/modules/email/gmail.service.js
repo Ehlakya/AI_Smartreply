@@ -156,41 +156,95 @@ const formatEmailForDB = (message, userId) => {
 };
 
 /**
- * Fetch and sync recent emails for a user.
+ * Fetch and sync recent emails for a user with pagination support.
+ * Useful for pulling a batch of emails.
  */
-const syncRecentEmails = async (user, maxResults = 50) => {
+const syncRecentEmails = async (user, maxResults = 100, pageToken = null) => {
   try {
     const gmail = createGmailClient(user);
     
     // 1. Fetch message list
-    const listRes = await gmail.users.messages.list({
+    const params = {
       userId: 'me',
       maxResults: maxResults,
-      q: '' // Can be used to filter
-    });
+      q: '' 
+    };
+    if (pageToken) params.pageToken = pageToken;
+
+    const listRes = await gmail.users.messages.list(params);
     
     const messages = listRes.data.messages;
+    const nextPageToken = listRes.data.nextPageToken;
+
     if (!messages || messages.length === 0) {
-      return [];
+      return { emails: [], nextPageToken: null };
     }
 
     const emailDocuments = [];
 
     // 2. Fetch full message details for each ID
     for (const msg of messages) {
-      const msgRes = await gmail.users.messages.get({
-        userId: 'me',
-        id: msg.id,
-        format: 'full'
-      });
-      
-      const formatted = formatEmailForDB(msgRes.data, user._id);
-      emailDocuments.push(formatted);
+      try {
+        const msgRes = await gmail.users.messages.get({
+          userId: 'me',
+          id: msg.id,
+          format: 'full'
+        });
+        
+        const formatted = formatEmailForDB(msgRes.data, user.id || user._id);
+        emailDocuments.push(formatted);
+      } catch (err) {
+        logger.error(`Error fetching individual message ${msg.id}: ${err.message}`);
+        // Continue fetching other messages even if one fails
+      }
     }
     
-    return emailDocuments;
+    return { emails: emailDocuments, nextPageToken };
   } catch (error) {
-    logger.error(`Gmail Sync Error for user ${user._id}: ${error.message}`);
+    logger.error(`Gmail Sync Error for user ${user.id || user._id}: ${error.message}`);
+    throw error;
+  }
+};
+
+/**
+ * Fetch a lightweight list of all current Message IDs in the user's Gmail to detect deletions and state changes.
+ * This runs fast because it only fetches IDs and Labels.
+ */
+const syncStateChanges = async (user, localDbData = []) => {
+  try {
+    const gmail = createGmailClient(user);
+    let pageToken = null;
+    const remoteData = new Map(); // Map of msgId -> { labels, folder }
+
+    // Fetch all IDs and labels
+    do {
+      const res = await gmail.users.messages.list({
+        userId: 'me',
+        maxResults: 500, // max allowed is 500
+        pageToken: pageToken
+      });
+
+      const messages = res.data.messages || [];
+      for (const msg of messages) {
+        // Unfortunately, messages.list doesn't return full labels unless we query threads/history or get them individually
+        // To be highly optimized without hitting API limits, we just track the existence of IDs here to detect deletions.
+        // Full label sync requires webhooks or history API. For now, we will at least detect completely deleted emails.
+        remoteData.set(msg.id, true); 
+      }
+      pageToken = res.data.nextPageToken;
+    } while (pageToken);
+
+    // Compare local DB with remote Data to find deletions
+    const emailsToDelete = [];
+    for (const localEmail of localDbData) {
+      if (!remoteData.has(localEmail.gmailMessageId)) {
+        emailsToDelete.push(localEmail.id);
+      }
+    }
+
+    return { emailsToDelete };
+  } catch (error) {
+    logger.error(`Gmail State Sync Error: ${error.message}`);
     throw error;
   }
 };
@@ -355,6 +409,7 @@ const batchDeleteMessages = async (user, messageIds) => {
 module.exports = {
   createGmailClient,
   syncRecentEmails,
+  syncStateChanges,
   sendEmail,
   modifyLabels,
   deleteMessage,

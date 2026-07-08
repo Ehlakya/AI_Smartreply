@@ -13,6 +13,7 @@ const summarizeEmail = async (req, res) => {
 
     const result = await groqService.summarizeEmail(emailContent);
     if (!result.success) {
+      if (result.isRateLimit) return res.status(429).json({ success: false, message: result.message, isRateLimit: true });
       return res.status(503).json({ success: false, message: result.message });
     }
 
@@ -36,6 +37,7 @@ const generateReply = async (req, res) => {
 
     const result = await groqService.generateReply(emailContent, tone);
     if (!result.success) {
+      if (result.isRateLimit) return res.status(429).json({ success: false, message: result.message, isRateLimit: true });
       return res.status(503).json({ success: false, message: result.message });
     }
 
@@ -59,6 +61,7 @@ const generateSuggestions = async (req, res) => {
 
     const result = await groqService.generateSuggestions(emailContent);
     if (!result.success) {
+      if (result.isRateLimit) return res.status(429).json({ success: false, message: result.message, isRateLimit: true });
       return res.status(503).json({ success: false, message: result.message });
     }
 
@@ -71,8 +74,33 @@ const generateSuggestions = async (req, res) => {
   }
 };
 
+/**
+ * Handle POST /api/ai/refine
+ * Body: { draft: string, instruction: string }
+ */
+const refineReply = async (req, res) => {
+  try {
+    const { draft, instruction } = req.body;
+    if (!draft || !instruction) return sendError(res, 'Draft and instruction are required.', 400);
+
+    const result = await groqService.refineReply(draft, instruction);
+    if (!result.success) {
+      if (result.isRateLimit) return res.status(429).json({ success: false, message: result.message, isRateLimit: true });
+      return res.status(503).json({ success: false, message: result.message });
+    }
+
+    return res.status(200).json({
+      reply: result.data
+    });
+  } catch (error) {
+    logger.error(`Refine Controller Error: ${error.message}`);
+    return res.status(500).json({ success: false, message: 'Unable to refine AI response.' });
+  }
+};
+
 module.exports = {
   summarizeEmail,
   generateReply,
-  generateSuggestions
+  generateSuggestions,
+  refineReply
 };

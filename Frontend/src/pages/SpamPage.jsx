@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDebounce } from 'use-debounce';
 import BulkActionBar from '../components/BulkActionBar';
 import { showUndoToast } from '../utils/toastUtils';
+import EmailDetailView from '../components/EmailDetailView';
 
 export default function SpamPage() {
   const { user } = useAuth();
@@ -240,71 +241,3 @@ export default function SpamPage() {
   );
 }
 
-function EmailDetailView({ email, onBack, onUpdate, onBulkAction }) {
-  const [fullEmail, setFullEmail] = useState(null);
-
-  useEffect(() => {
-    let isMounted = true;
-    emailService.getEmailById(email._id)
-      .then(res => {
-        if (isMounted) {
-          setFullEmail(res.data.email);
-          if (!email.isRead) {
-            onUpdate();
-          }
-        }
-      })
-      .catch(() => toast.error('Failed to load email details.'));
-    return () => { isMounted = false; };
-  }, [email._id]);
-
-  return (
-    <div className="flex flex-col h-full w-full bg-background/50 backdrop-blur-md">
-      {/* Header */}
-      <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5 shrink-0">
-        <div className="flex items-center gap-4 min-w-0">
-          <button onClick={onBack} className="p-2 rounded-full hover:bg-white/10"><ChevronLeft /></button>
-          <div className="flex-1 min-w-0 hidden md:block">
-            <h2 className="text-xl font-bold truncate">{email.subject}</h2>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => onBulkAction('unspam', [email._id])} className="p-2 hover:bg-success/20 text-success rounded-full transition" title="Not Spam"><ShieldBan className="w-5 h-5" /></button>
-          <button onClick={() => onBulkAction('trash', [email._id])} className="p-2 hover:bg-danger/20 text-danger rounded-full transition" title="Delete"><Trash2 className="w-5 h-5" /></button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
-        <div className="bg-white/5 p-6 rounded-2xl border border-white/10 shadow-lg">
-          {fullEmail ? (
-            <div className="flex flex-col">
-              <div className="flex justify-between items-start mb-6 pb-4 border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <img 
-                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${fullEmail.senderName || fullEmail.senderEmail}`} 
-                    className="w-12 h-12 rounded-full bg-white/10 p-1"
-                    alt="avatar"
-                  />
-                  <div>
-                    <div className="font-bold text-lg">{fullEmail.senderName || fullEmail.senderEmail.split('@')[0]}</div>
-                    <div className="text-sm text-foreground/60">{fullEmail.senderEmail}</div>
-                  </div>
-                </div>
-                <div className="text-sm text-foreground/50">
-                  {new Date(fullEmail.receivedAt).toLocaleString()}
-                </div>
-              </div>
-              {fullEmail.htmlBody ? (
-                 <div dangerouslySetInnerHTML={{ __html: fullEmail.htmlBody }} className="prose prose-invert max-w-none text-sm break-words" />
-              ) : (
-                 <div className="whitespace-pre-wrap text-sm font-sans">{fullEmail.body}</div>
-              )}
-            </div>
-          ) : (
-            <div className="flex justify-center p-10"><RefreshCw className="w-8 h-8 animate-spin text-primary" /></div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
