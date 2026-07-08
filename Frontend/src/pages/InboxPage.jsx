@@ -29,6 +29,10 @@ export default function InboxPage() {
   const syncMutation = useMutation({
     mutationFn: () => emailService.syncEmails(),
     onSuccess: (res) => {
+      if (res.isLocked) {
+        toast.error(res.message || 'Sync is already in progress.');
+        return;
+      }
       if (res.data?.syncedCount > 0) {
         toast.success(`Synced ${res.data.syncedCount} new emails!`);
       }

@@ -32,6 +32,15 @@ export default function SyncScreen() {
         
         if (!isMounted) return;
 
+        if (result.isLocked) {
+          // Sync already in progress, fast-forward to dashboard
+          setStep(3); // Complete
+          setTimeout(() => {
+            if (isMounted) navigate('/dashboard');
+          }, 1000);
+          return;
+        }
+
         setStep(1); // Connected
         await new Promise(r => setTimeout(r, 500));
         
@@ -44,6 +53,15 @@ export default function SyncScreen() {
           if (isMounted) navigate('/dashboard');
         }, 1000);
       } catch (error) {
+        if (error.response?.status === 429) {
+          // Sync already in progress, just fast-forward to dashboard seamlessly
+          setStep(3); // Complete
+          setTimeout(() => {
+            if (isMounted) navigate('/dashboard');
+          }, 1000);
+          return;
+        }
+        
         console.error("Sync failed", error);
         // Fallback to dashboard even if sync fails
         setTimeout(() => {

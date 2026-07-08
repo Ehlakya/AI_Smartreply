@@ -28,7 +28,7 @@ const syncEmails = async (req, res) => {
     const result = await emailService.syncEmails(user.id, null, 50);
 
     if (result.isLocked) {
-      return res.status(429).json({ success: false, message: 'Sync is already in progress.', isLocked: true });
+      return res.status(200).json({ success: false, message: 'Sync is already in progress.', isLocked: true });
     }
 
     // If there is more history, kick off a background sync process
