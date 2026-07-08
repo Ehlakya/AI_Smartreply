@@ -1,0 +1,168 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DB_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                String         @id @default(uuid())
+  googleId          String?        @unique
+  email             String         @unique
+  name              String
+  picture           String?
+  role              String         @default("user") // 'user', 'admin'
+  refreshToken      String?
+  gmailAccessToken  String?
+  gmailRefreshToken String?
+  lastSyncAt        DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  settings      Settings?
+  categories    Category[]
+  contacts      Contacts[]
+  emails        Email[]
+  replies       Reply[]
+  aiHistories   AIHistory[]
+  spams         Spam[]
+  notifications Notification[]
+}
+
+model Settings {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replyTone               String   @default("Professional")
+  signature               String   @default("")
+  language                String   @default("English")
+  autoCategorization      Boolean  @default(true)
+  autoSync                Boolean  @default(false)
+  autoSyncIntervalMinutes Int      @default(15)
+  companyDomain           String   @default("")
+  teamMembers             String[]
+  departmentKeywords      String[]
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  subCategory String?
+  keywords    String[]
+  color       String   @default("#cccccc")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Contacts {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email            String
+  name             String?
+  category         String   @default("Unknown") // 'Priority', 'Team', 'Others', 'Spam', 'Unknown'
+  interactionCount Int      @default(1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, email])
+}
+
+model Email {
+  id                 String   @id @default(uuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gmailMessageId     String   @unique
+  threadId           String
+  senderName         String   @default("")
+  senderEmail        String
+  receiverEmail      String
+  cc                 String   @default("")
+  bcc                String   @default("")
+  subject            String   @default("(No Subject)")
+  snippet            String   @default("")
+  body               String   @default("")
+  htmlBody           String   @default("")
+  labels             String[]
+  attachments        Json     @default("[]") // Store as JSON since it's an array of objects
+  receivedAt         DateTime
+  isRead             Boolean  @default(false)
+  isStarred          Boolean  @default(false)
+  folder             String   @default("inbox")
+  aiPriority         String?  // 'High', 'Medium', 'Low', null
+  aiReason           String   @default("")
+  aiConfidence       Float?
+  aiCategory         String   @default("Inbox") // 'Company', 'Priority', 'Team', 'Inbox'
+  globalPriorityRank Int      @default(6)
+  isAnalyzed         Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  replies       Reply[]
+  aiHistories   AIHistory[]
+  spams         Spam[]
+
+  @@index([userId, folder, receivedAt(sort: Desc)])
+}
+
+model Reply {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailId          String
+  email            Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  generatedContent String
+  editedContent    String?
+  tone             String?
+  status           String   @default("Draft") // 'Draft', 'Sent', 'Discarded'
+  sentAt           DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model AIHistory {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailId     String?
+  email       Email?   @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  actionType  String
+  promptUsed  String?
+  aiResponse  String
+  tokensUsed  Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Spam {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailId     String
+  email       Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  spamScore   Int?
+  reasons     String[]
+  source      String?
+  isConfirmed Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String
+  title       String
+  message     String
+  relatedId   String?  // References other entities dynamically
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
