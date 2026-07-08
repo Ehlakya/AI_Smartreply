@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
-const User = require('../user/user.model');
+const prisma = require('../../config/prisma');
 const env = require('../../config/env');
 const { generateAccessToken, generateRefreshToken } = require('../../shared/utils/jwt');
 
@@ -25,27 +25,37 @@ const handleGoogleCallback = async (code) => {
   });
   const payload = ticket.getPayload();
 
-  // Find or create user
-  let user = await User.findOne({ email: payload.email });
-  if (!user) {
-    user = new User({
+  // Find or create user, and update tokens
+  let user = await prisma.user.upsert({
+    where: { email: payload.email },
+    update: {
+      googleId: payload.sub,
+      name: payload.name,
+      picture: payload.picture,
+      gmailAccessToken: tokens.access_token,
+      ...(tokens.refresh_token && { gmailRefreshToken: tokens.refresh_token })
+    },
+    create: {
       googleId: payload.sub,
       email: payload.email,
       name: payload.name,
       picture: payload.picture,
-    });
-  }
+      gmailAccessToken: tokens.access_token,
+      gmailRefreshToken: tokens.refresh_token || null
+    }
+  });
 
-  // Store tokens in user document for background sync
-  user.gmailAccessToken = tokens.access_token;
-  user.gmailRefreshToken = tokens.refresh_token || user.gmailRefreshToken;
-  
   // Generate our app's JWTs
-  const accessToken = generateAccessToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
+  const accessToken = generateAccessToken(user.id);
+  const refreshToken = generateRefreshToken(user.id);
   
-  user.refreshToken = refreshToken;
-  await user.save();
+  user = await prisma.user.update({
+    where: { id: user.id },
+    data: { refreshToken }
+  });
+
+  // For backward compatibility in some controllers
+  user._id = user.id;
 
   return { user, accessToken, refreshToken };
 };
@@ -53,17 +63,19 @@ const handleGoogleCallback = async (code) => {
 const refreshSession = async (oldRefreshToken) => {
   try {
     const decoded = jwt.verify(oldRefreshToken, env.JWT_REFRESH_SECRET);
-    const user = await User.findById(decoded.id);
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
     
     if (!user || user.refreshToken !== oldRefreshToken) {
       throw new Error('Invalid refresh token');
     }
 
-    const newAccessToken = generateAccessToken(user._id);
-    const newRefreshToken = generateRefreshToken(user._id);
+    const newAccessToken = generateAccessToken(user.id);
+    const newRefreshToken = generateRefreshToken(user.id);
 
-    user.refreshToken = newRefreshToken;
-    await user.save();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken: newRefreshToken }
+    });
 
     return { accessToken: newAccessToken, refreshToken: newRefreshToken };
   } catch (error) {
@@ -72,7 +84,10 @@ const refreshSession = async (oldRefreshToken) => {
 };
 
 const logout = async (userId) => {
-  await User.findByIdAndUpdate(userId, { refreshToken: null });
+  await prisma.user.update({
+    where: { id: userId },
+    data: { refreshToken: null }
+  });
 };
 
 module.exports = {

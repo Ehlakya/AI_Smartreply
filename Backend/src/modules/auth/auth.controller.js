@@ -3,8 +3,7 @@ const { sendSuccess, sendError } = require('../../shared/utils/response');
 const env = require('../../config/env');
 const logger = require('../../shared/utils/logger');
 const { generateAccessToken, generateRefreshToken } = require('../../shared/utils/jwt');
-const User = require('../user/user.model');
-const mongoose = require('mongoose');
+const prisma = require('../../config/prisma');
 
 // Step 1: Handle Google Callback (User authenticated by Passport)
 const googleCallback = async (req, res) => {
@@ -15,13 +14,15 @@ const googleCallback = async (req, res) => {
       return res.redirect(`${env.FRONTEND_URL}/login?error=auth_failed`);
     }
 
-    if (env.NODE_ENV === 'development') console.log(`[OAuth] Login successful for user: ${user._id}`);
+    if (env.NODE_ENV === 'development') console.log(`[OAuth] Login successful for user: ${user.id}`);
 
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
     
-    user.refreshToken = refreshToken;
-    await user.save();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken }
+    });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
@@ -86,7 +87,7 @@ const getMe = (req, res) => {
 const logout = async (req, res, next) => {
   try {
     if (req.user) {
-      await authService.logout(req.user._id);
+      await authService.logout(req.user.id || req.user._id);
     }
     res.clearCookie('refreshToken');
     sendSuccess(res, 'Logged out successfully');
@@ -99,36 +100,40 @@ const logout = async (req, res, next) => {
 const devLogin = async (req, res) => {
   try {
     let user;
-    const isDbOnline = mongoose.connection.readyState === 1;
-
-    if (isDbOnline) {
-      user = await User.findOne({ email: 'dev@example.com' });
+    
+    try {
+      user = await prisma.user.findUnique({ where: { email: 'dev@example.com' } });
       if (!user) {
-        user = new User({
-          googleId: 'dev_user_123',
-          email: 'dev@example.com',
-          name: 'Developer Mode',
-          picture: 'https://ui-avatars.com/api/?name=Dev',
-          provider: 'dev'
+        user = await prisma.user.create({
+          data: {
+            googleId: 'dev_user_123',
+            email: 'dev@example.com',
+            name: 'Developer Mode',
+            picture: 'https://ui-avatars.com/api/?name=Dev',
+            role: 'admin'
+          }
         });
-        await user.save();
       }
-    } else {
+    } catch (dbError) {
       // Mock user if DB is offline
       user = {
-        _id: new mongoose.Types.ObjectId(),
+        id: require('crypto').randomUUID(),
         email: 'dev@example.com',
         name: 'Developer Mode (Offline DB)',
         picture: 'https://ui-avatars.com/api/?name=Dev'
       };
     }
 
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
     
-    if (isDbOnline) {
-      user.refreshToken = refreshToken;
-      await user.save();
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { refreshToken }
+      });
+    } catch (e) {
+      // ignore offline errors
     }
 
     res.cookie('refreshToken', refreshToken, {

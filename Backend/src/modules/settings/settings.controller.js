@@ -1,11 +1,12 @@
-const Settings = require('./settings.model');
+const prisma = require('../../config/prisma');
 const { sendSuccess, sendError } = require('../../shared/utils/response');
 
 exports.getSettings = async (req, res, next) => {
   try {
-    let settings = await Settings.findOne({ user: req.user._id });
+    const userId = req.user.id || req.user._id;
+    let settings = await prisma.settings.findUnique({ where: { userId } });
     if (!settings) {
-      settings = await Settings.create({ user: req.user._id });
+      settings = await prisma.settings.create({ data: { userId } });
     }
     sendSuccess(res, 'Settings fetched successfully', settings);
   } catch (error) {
@@ -16,24 +17,25 @@ exports.getSettings = async (req, res, next) => {
 
 exports.updateSettings = async (req, res, next) => {
   try {
+    const userId = req.user.id || req.user._id;
     const { companyDomain, teamMembers, departmentKeywords, replyTone, signature, language, autoCategorization, autoSync, autoSyncIntervalMinutes } = req.body;
     
-    let settings = await Settings.findOne({ user: req.user._id });
-    if (!settings) {
-      settings = new Settings({ user: req.user._id });
-    }
+    const data = {};
+    if (companyDomain !== undefined) data.companyDomain = companyDomain;
+    if (teamMembers !== undefined) data.teamMembers = teamMembers;
+    if (departmentKeywords !== undefined) data.departmentKeywords = departmentKeywords;
+    if (replyTone !== undefined) data.replyTone = replyTone;
+    if (signature !== undefined) data.signature = signature;
+    if (language !== undefined) data.language = language;
+    if (autoCategorization !== undefined) data.autoCategorization = autoCategorization;
+    if (autoSync !== undefined) data.autoSync = autoSync;
+    if (autoSyncIntervalMinutes !== undefined) data.autoSyncIntervalMinutes = autoSyncIntervalMinutes;
 
-    if (companyDomain !== undefined) settings.companyDomain = companyDomain;
-    if (teamMembers !== undefined) settings.teamMembers = teamMembers;
-    if (departmentKeywords !== undefined) settings.departmentKeywords = departmentKeywords;
-    if (replyTone !== undefined) settings.replyTone = replyTone;
-    if (signature !== undefined) settings.signature = signature;
-    if (language !== undefined) settings.language = language;
-    if (autoCategorization !== undefined) settings.autoCategorization = autoCategorization;
-    if (autoSync !== undefined) settings.autoSync = autoSync;
-    if (autoSyncIntervalMinutes !== undefined) settings.autoSyncIntervalMinutes = autoSyncIntervalMinutes;
-
-    await settings.save();
+    const settings = await prisma.settings.upsert({
+      where: { userId },
+      update: data,
+      create: { userId, ...data }
+    });
 
     sendSuccess(res, 'Settings updated successfully', settings);
   } catch (error) {

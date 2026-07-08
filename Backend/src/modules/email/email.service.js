@@ -1,19 +1,18 @@
 const { createGmailClient } = require('../../config/gmail');
-const Email = require('./email.model');
-const User = require('../user/user.model');
-const Settings = require('../settings/settings.model');
+const prisma = require('../../config/prisma');
 const { analyzeEmailImportance } = require('../ai/groq.service');
 const logger = require('../../shared/utils/logger');
 
 const syncEmails = async (userId) => {
   try {
-    const user = await User.findById(userId);
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.gmailAccessToken) {
       throw new Error('User not connected to Gmail or tokens missing');
     }
 
     // Use gmailService to fetch and cleanly parse the emails
     const gmailService = require('./gmail.service');
+    // Note: gmail.service expects user with user.gmailAccessToken and user.gmailRefreshToken
     const emailsToSync = await gmailService.syncRecentEmails(user, 50);
 
     if (emailsToSync.length === 0) {
@@ -31,7 +30,7 @@ const syncEmails = async (userId) => {
     ];
 
     // Check against User Settings
-    const userSettings = await Settings.findOne({ user: userId });
+    const userSettings = await prisma.settings.findUnique({ where: { userId } });
     const userDomain = userSettings?.companyDomain?.toLowerCase();
     const userTeamMembers = userSettings?.teamMembers?.map(t => t.toLowerCase()) || [];
     const userDepartments = userSettings?.departmentKeywords?.map(d => d.toLowerCase()) || [];
@@ -140,17 +139,17 @@ const syncEmails = async (userId) => {
 
       emailData.globalPriorityRank = rank;
 
-      bulkOps.push({
-        updateOne: {
-          filter: { userId: user._id, gmailMessageId: emailData.gmailMessageId },
-          update: { $set: emailData },
-          upsert: true
-        }
-      });
+      bulkOps.push(
+        prisma.email.upsert({
+          where: { gmailMessageId: emailData.gmailMessageId },
+          update: emailData,
+          create: { userId: user.id, ...emailData }
+        })
+      );
     }
 
     if (bulkOps.length > 0) {
-      await Email.bulkWrite(bulkOps);
+      await prisma.$transaction(bulkOps);
     }
 
     logger.info(`Successfully synced ${bulkOps.length} new emails for user ${userId}`);

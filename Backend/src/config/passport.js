@@ -1,6 +1,5 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const User = require('../modules/user/user.model');
 const env = require('./env');
 
 const isValidOAuth = (
@@ -25,37 +24,30 @@ if (isValidOAuth) {
           console.log(`[OAuth] Token exchange successful.`);
         }
 
-        let user;
-        const mongoose = require('mongoose');
+        const prisma = require('../../src/config/prisma');
         
-        if (mongoose.connection.readyState !== 1) {
-          if (env.NODE_ENV === 'development') console.error(`[OAuth] Cannot authenticate user: MongoDB is disconnected.`);
-          return done(new Error('Database disconnected'), null);
-        }
-
-        user = await User.findOne({ googleId: profile.id });
-        
-        if (!user) {
-          if (env.NODE_ENV === 'development') console.log(`[OAuth] Creating new user for ${profile.emails[0].value}`);
-          user = new User({
+        let user = await prisma.user.upsert({
+          where: { googleId: profile.id },
+          update: {
+            email: profile.emails[0].value,
+            name: profile.displayName,
+            picture: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : null,
+            gmailAccessToken: accessToken,
+            ...(refreshToken && { gmailRefreshToken: refreshToken }),
+          },
+          create: {
             googleId: profile.id,
             email: profile.emails[0].value,
             name: profile.displayName,
-            picture: profile.photos[0].value,
-            provider: 'google'
-          });
-        } else {
-          if (env.NODE_ENV === 'development') console.log(`[OAuth] Existing user found: ${user.email}`);
-        }
+            picture: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : null,
+            gmailAccessToken: accessToken,
+            gmailRefreshToken: refreshToken || null,
+          }
+        });
         
-        // Update tokens every login
-        user.gmailAccessToken = accessToken;
-        if (refreshToken) {
-          user.gmailRefreshToken = refreshToken;
-        }
-        user.loginTime = new Date();
-        
-        await user.save();
+        // Backward compatibility
+        user._id = user.id;
+
         return done(null, user);
       } catch (error) {
         return done(error, null);

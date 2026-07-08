@@ -4,7 +4,6 @@ const router = express.Router();
 const authController = require('./auth.controller');
 const authMiddleware = require('../../shared/middlewares/auth.middleware');
 const env = require('../../config/env');
-const mongoose = require('mongoose');
 
 // Passport Google Auth route
 router.get('/google', (req, res, next) => {

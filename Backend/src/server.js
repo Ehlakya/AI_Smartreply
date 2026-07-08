@@ -28,7 +28,7 @@ const startServer = async () => {
     }
     
     await connectDB();
-    console.log('✓ MongoDB Connected');
+    console.log('✓ PostgreSQL Connected');
 
     // 3. Setup Complete
     if (env.GOOGLE_CLIENT_ID && !env.GOOGLE_CLIENT_ID.includes('your_')) {
